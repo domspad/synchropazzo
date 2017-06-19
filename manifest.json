@@ -1,0 +1,19 @@
+{
+  "description": "Tell server the current open tabs",
+  "name": "tattle-tale",
+  "manifest_version": 2,
+  "version": "0.0.1",
+
+  "background": {
+  "page": "background.html"
+  },
+
+  "permissions": ["<all_urls>", "tabs"],
+
+    "applications": {
+      "gecko": {
+        "id": "synchropazzo@gmail.com"
+      }
+    }
+
+}
