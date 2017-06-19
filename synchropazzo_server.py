@@ -8,13 +8,15 @@ import sys
 import ssl
 from SimpleWebSocketServer import WebSocket, SimpleWebSocketServer, SimpleSSLWebSocketServer
 from optparse import OptionParser
+import json
 
 class SimpleEcho(WebSocket):
 
    def handleMessage(self):
-       print(self.data)
-       import ipdb; ipdb.set_trace();
-       # self.sendMessage(self.data)
+       tab_data = json.loads(self.data)
+       # import ipdb; ipdb.set_trace();
+       print(tab_data)
+       self.sendMessage(self.data)
 
    def handleConnected(self):
        print("connected!")

@@ -1,41 +1,121 @@
 
 mysocket = new WebSocket("ws://localhost:8000/");
-mysocket.onopen = function(evt) { constole.log('opened!');}
+mysocket.onopen = function(evt) { console.log('opened!');}
 
-function report_state() {
-    var querying = browser.tabs.query({});
-    querying.then(report_tabs, onError);
+
+
+browser.browserAction.onClicked.addListener(handle_click);
+
+function handle_click(tab) {
+    console.log('sending tab!');
+    mysocket.send(JSON.stringify(tab));
 }
 
-function report_tabs(tabs) {
-    var myurls = new Array
-    for (let tab of tabs) { 
-        myurls.push(tab.url);
-    }
-    console.log('sending tabs');
-    mysocket.send(myurls.join(','));
+mysocket.onmessage = function(evt) {
+    console.log('creating tab!');
+    console.log(evt.data);
+    tab_obj = JSON.parse(evt.data);
+    new_tab = {"url": tab_obj["url"]}
+    browser.tabs.create(new_tab);
 }
 
-function onError(error) {
-  console.log(`Error: ${error}`);
-}
-
-setInterval(report_state, 5000);
-
-
-
-//function onCreated(tab) {
-  //console.log(`Created new tab: ${tab.id}`)
+/* This is for constant heartbeat status*/
+//function report_state() {
+    //var querying = browser.tabs.query({});
+    //querying.then(report_tabs, onError);
 //}
 
-//tab_obj = {
-    //active: false,
-    //index: 0, // tab order in window
-    //pinned: false, //whether this tab should be pinned (def. false)
-    //url: "http://controlfd.com",
-    ////windowId: 3, //defaults to current window
+//function report_tabs(tabs) {
+    //console.log('sending tabs');
+    //mysocket.send(JSON.stringify(tabs));
 //}
 
-//creating = browser.tabs.create(tab_obj);
-//creating.then(onCreated, onError);
+//function onError(error) {
+  //console.log(`Error: ${error}`);
+//}
 
+//setInterval(report_state, 5000);
+
+
+
+//var currentTab;
+//var currentBookmark;
+
+/*
+ * Updates the browserAction icon to reflect whether the current page
+ * is already bookmarked.
+ */
+//function updateIcon() {
+  //browser.browserAction.setIcon({
+    //path: currentBookmark ? {
+      //19: "icons/star-filled-19.png",
+      //38: "icons/star-filled-38.png"
+    //} : {
+      //19: "icons/star-empty-19.png",
+      //38: "icons/star-empty-38.png"
+    //},
+    //tabId: currentTab.id
+  //});
+//}
+
+/*
+ * Add or remove the bookmark on the current page.
+ */
+//function toggleBookmark() {
+  //if (currentBookmark) {
+    //browser.bookmarks.remove(currentBookmark.id);
+  //} else {
+    //browser.bookmarks.create({title: currentTab.title, url: currentTab.url});
+  //}
+//}
+
+//browser.browserAction.onClicked.addListener(toggleBookmark);
+
+/*
+ * Switches currentTab and currentBookmark to reflect the currently active tab
+ */
+//function updateActiveTab(tabs) {
+
+  //function isSupportedProtocol(urlString) {
+    //var supportedProtocols = ["https:", "http:", "ftp:", "file:"];
+    //var url = document.createElement('a');
+    //url.href = urlString;
+    //return supportedProtocols.indexOf(url.protocol) != -1;
+  //}
+
+  //function updateTab(tabs) {
+    //if (tabs[0]) {
+      //currentTab = tabs[0];
+      //if (isSupportedProtocol(currentTab.url)) {
+        //var searching = browser.bookmarks.search({url: currentTab.url});
+        //searching.then((bookmarks) => {
+          //currentBookmark = bookmarks[0];
+          //updateIcon();
+        //});
+      //} else {
+        //console.log(`Bookmark it! does not support the '${currentTab.url}' URL.`)
+      //}
+    //}
+  //}
+
+  //var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
+  //gettingActiveTab.then(updateTab);
+//}
+
+//// listen for bookmarks being created
+//browser.bookmarks.onCreated.addListener(updateActiveTab);
+
+//// listen for bookmarks being removed
+//browser.bookmarks.onRemoved.addListener(updateActiveTab);
+
+//// listen to tab URL changes
+//browser.tabs.onUpdated.addListener(updateActiveTab);
+
+//// listen to tab switching
+//browser.tabs.onActivated.addListener(updateActiveTab);
+
+//// listen for window switching
+//browser.windows.onFocusChanged.addListener(updateActiveTab);
+
+//// update when the extension loads initially
+//updateActiveTab();
