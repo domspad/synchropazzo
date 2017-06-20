@@ -19,7 +19,7 @@ class SimpleEcho(WebSocket):
        # import ipdb; ipdb.set_trace();
        print(tab_data)
        for client in clients:
-          if client != self:
+          if client.__dict__ != self.__dict__:
               self.sendMessage(self.data)
 
    def handleConnected(self):
