@@ -2,22 +2,38 @@
 mysocket = new WebSocket("ws://linus.casa:8000/");
 mysocket.onopen = function(evt) { console.log('opened!');}
 
+mysocket.onmessage = sync_me_up;
 
-
-browser.browserAction.onClicked.addListener(handle_click);
-
-function handle_click(tab) {
-    console.log('sending tab!');
-    mysocket.send(JSON.stringify(tab));
+function sync_me_up(evt){
+    console.log(evt);
+    console.log("I'm doing the syncing!");
 }
 
-mysocket.onmessage = function(evt) {
-    console.log('creating tab!');
-    console.log(evt.data);
-    tab_obj = JSON.parse(evt.data);
-    new_tab = {"url": tab_obj["url"]}
-    browser.tabs.create(new_tab);
+function heres_my_state(){
+    var querying = browser.tabs.query({});
+    querying.then( (tabs) => {
+        mysocket.send(JSON.stringify(tabs));
+    });
 }
+
+browser.browserAction.onClicked.addListener(heres_my_state);
+
+//setInterval(heres_my_state, 5000);
+
+//browser.browserAction.onClicked.addListener(handle_click);
+
+//function handle_click(tab) {
+    //console.log('sending tab!');
+    //mysocket.send(JSON.stringify(tab));
+//}
+
+//mysocket.onmessage = function(evt) {
+    //console.log('creating tab!');
+    //console.log(evt.data);
+    //tab_obj = JSON.parse(evt.data);
+    //new_tab = {"url": tab_obj["url"]}
+    //browser.tabs.create(new_tab);
+//}
 
 /* This is for constant heartbeat status*/
 //function report_state() {
