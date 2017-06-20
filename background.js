@@ -38,7 +38,7 @@ function sync_me_up(evt){
                 }
             }
             if(found == false){
-                browser.remove(mytab.id);
+                browser.tabs.remove(mytab.id);
             }
         }
     }   
@@ -54,7 +54,7 @@ function heres_my_state(){
 
 browser.browserAction.onClicked.addListener(heres_my_state);
 
-//setInterval(heres_my_state, 5000);
+setInterval(heres_my_state, 5000);
 
 //browser.browserAction.onClicked.addListener(handle_click);
 
