@@ -10,20 +10,24 @@ from SimpleWebSocketServer import WebSocket, SimpleWebSocketServer, SimpleSSLWeb
 from optparse import OptionParser
 import json
 
+clients = []
+
 class SimpleEcho(WebSocket):
 
    def handleMessage(self):
        tab_data = json.loads(self.data)
        # import ipdb; ipdb.set_trace();
        print(tab_data)
-       self.sendMessage(self.data)
+       for client in clients:
+          if client != self:
+              self.sendMessage(self.data)
 
    def handleConnected(self):
-       print("connected!")
-       pass
+       print("{0} connected!".format(self.address))
+       clients.append(self)
 
    def handleClose(self):
-      pass
+       clients.remove(self)
 
 
 if __name__ == "__main__":
