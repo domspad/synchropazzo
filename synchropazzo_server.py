@@ -20,7 +20,7 @@ class SimpleEcho(WebSocket):
        print(tab_data)
        for client in clients:
           if client.__dict__ != self.__dict__:
-              self.sendMessage(self.data)
+              client.sendMessage(self.data)
 
    def handleConnected(self):
        print("{0} connected!".format(self.address))

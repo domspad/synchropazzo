@@ -1,5 +1,5 @@
 
-mysocket = new WebSocket("ws://localhost:8000/");
+mysocket = new WebSocket("ws://linus.casa:8000/");
 mysocket.onopen = function(evt) { console.log('opened!');}
 
 
