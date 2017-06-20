@@ -7,6 +7,42 @@ mysocket.onmessage = sync_me_up;
 function sync_me_up(evt){
     console.log(evt);
     console.log("I'm doing the syncing!");
+    tab_obj = JSON.parse(evt.data);
+    my_tabs = browser.tabs.query({});
+    function compare_and_sync(my_tabs){
+        for (let tab of tab_obj) { 
+            new_url = tab.url;
+            found = false;
+            for (let mytab of my_tabs){
+                if(new_url == mytab.url){
+                    found = true;
+                    if(tab.active){
+                        browser.tabs.update(mytab.id, {'active': true});
+                    }
+                    break;
+                }
+            }
+            if(found == false){
+                tab_to_crea = {url : tab.url, active : tab.active};
+                browser.tabs.create(tab_to_crea);
+            }
+        }
+
+        for (let mytab of my_tabs){
+            mytab_url = mytab.url;
+            found = false;
+            for(let tab of tab_obj){
+                if(mytab_url == tab.url){
+                    found = true;
+                    break;
+                }
+            }
+            if(found == false){
+                browser.remove(mytab.id);
+            }
+        }
+    }   
+    my_tabs.then(compare_and_sync);
 }
 
 function heres_my_state(){
