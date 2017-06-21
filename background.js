@@ -19,9 +19,9 @@ mysocket.onmessage = function(evt) {
     });
     console.log(tablist);
     data = JSON.parse(evt.data);
-    switch (data.kind) { 
+    switch (data.kind) {
     case 'create_tab':
-        console.log('create!'); 
+        console.log('create!');
         //new_tab = {"url": tab_obj["url"]}
         //browser.tabs.create(new_tab);
         break;
@@ -65,19 +65,19 @@ function handle_created(tab){
 function handle_activated(tab){
     var msg = create_message('activate_tab');
     msg.payload = tab
-    mysocket.send(JSON.stringify(msg));
+    //mysocket.send(JSON.stringify(msg));
 }
 
 function handle_replaced(tab){
     var msg = create_message('replace_tab');
     msg.payload = tab
-    mysocket.send(JSON.stringify(msg));
+    //mysocket.send(JSON.stringify(msg));
 }
 
 function handle_removed(tab){
     var msg = create_message('remove_tab');
     msg.payload = tab
-    mysocket.send(JSON.stringify(msg));
+    //mysocket.send(JSON.stringify(msg));
 }
 
 function handle_updated(id, update_info){
@@ -86,16 +86,16 @@ function handle_updated(id, update_info){
     var getting = browser.tabs.get(id);
     console.log(update_info);
     getting.then((tab) => {
-        console.log(tab)
+        //console.log(tab)
     //browser.tabs.query({}, console.log)
-    //var tab_query = browser.tabs.query({'id':id}); 
-    //tab_query.then(function(tab_q) { 
+    //var tab_query = browser.tabs.query({'id':id});
+    //tab_query.then(function(tab_q) {
         //console.log(tab_q);
-        if(update_info.url){
-            var msg = create_message('update_tab');
-            msg.payload = {'url': update_info.url, 'id' : id};
-            mysocket.send(JSON.stringify(msg));
-        }
+        //if(update_info.url){
+            //var msg = create_message('update_tab');
+            //msg.payload = {'url': update_info.url, 'id' : id};
+            //mysocket.send(JSON.stringify(msg));
+        //}
     //});
     });
 }
