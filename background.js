@@ -36,6 +36,13 @@ mysocket.onmessage = function(evt) {
         break;
     case 'activate_tab':
         console.log('activate!');
+        browser.tabs.onActivated.removeListener(handle_activated);
+        browser.tabs.onUpdated.removeListener(handle_updated);
+        updatePromise = browser.tabs.update(tab_id_dict.get(data.payload.tabId), {"active": true});
+        updatePromise.then(function(tab) {
+            browser.tabs.onActivated.addListener(handle_activated);
+            browser.tabs.onUpdated.addListener(handle_updated);
+        });
         break;
     case 'remove_tab':
         console.log('remove!');
@@ -129,7 +136,9 @@ function handle_created(tab){
 function handle_activated(tab){
     var msg = create_message('activate_tab');
     msg.payload = tab;
-    //mysocket.send(JSON.stringify(msg));
+    console.log('sending an activate!');
+    console.log(msg);
+    mysocket.send(JSON.stringify(msg));
 }
 
 function handle_replaced(tab){
