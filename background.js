@@ -1,60 +1,8 @@
+var tab_id_dict = new Map();
 
 mysocket = new WebSocket("ws://linus.casa:8000/");
 mysocket.onopen = function(evt) { console.log('opened!');}
 
-mysocket.onmessage = sync_me_up;
-
-function sync_me_up(evt){
-    console.log(evt);
-    console.log("I'm doing the syncing!");
-    tab_obj = JSON.parse(evt.data);
-    my_tabs = browser.tabs.query({});
-    function compare_and_sync(my_tabs){
-        for (let tab of tab_obj) { 
-            new_url = tab.url;
-            found = false;
-            for (let mytab of my_tabs){
-                if(new_url == mytab.url){
-                    found = true;
-                    if(tab.active){
-                        browser.tabs.update(mytab.id, {'active': true});
-                    }
-                    break;
-                }
-            }
-            if(found == false){
-                tab_to_crea = {url : tab.url, active : tab.active};
-                browser.tabs.create(tab_to_crea);
-            }
-        }
-
-        for (let mytab of my_tabs){
-            mytab_url = mytab.url;
-            found = false;
-            for(let tab of tab_obj){
-                if(mytab_url == tab.url){
-                    found = true;
-                    break;
-                }
-            }
-            if(found == false){
-                browser.tabs.remove(mytab.id);
-            }
-        }
-    }   
-    my_tabs.then(compare_and_sync);
-}
-
-function heres_my_state(){
-    var querying = browser.tabs.query({});
-    querying.then( (tabs) => {
-        mysocket.send(JSON.stringify(tabs));
-    });
-}
-
-browser.browserAction.onClicked.addListener(heres_my_state);
-
-setInterval(heres_my_state, 5000);
 
 //browser.browserAction.onClicked.addListener(handle_click);
 
@@ -63,111 +11,149 @@ setInterval(heres_my_state, 5000);
     //mysocket.send(JSON.stringify(tab));
 //}
 
-//mysocket.onmessage = function(evt) {
-    //console.log('creating tab!');
-    //console.log(evt.data);
-    //tab_obj = JSON.parse(evt.data);
-    //new_tab = {"url": tab_obj["url"]}
-    //browser.tabs.create(new_tab);
-//}
+mysocket.onmessage = function(evt) {
+    console.log(evt.data);
+    //var tablist = [];
+    //browser.tabs.query({}).then((tabs)=>{
+       //tablist = tabs;
+    //});
+    //console.log(tablist);
+    data = JSON.parse(evt.data);
+    switch (data.kind) {
+    case 'create_tab':
+        console.log('create!');
+        browser.tabs.onCreated.removeListener(handle_created);
+        var tabPromise = browser.tabs.create({});
+        tabPromise.then(function(tab) {
+            tab_id_dict.set(data.payload.id, tab.id);
+            updateMappingMessage(tab.id, data.payload.id);
+            browser.tabs.onCreated.addListener(handle_created);
+        });
+        browser.tabs.onCreated.addListener(handle_created);
+        break;
+    case 'activate_tab':
+        console.log('activate!');
+        break;
+    case 'remove_tab':
+        console.log('remove!');
+        var soonToBeDeadTab = tab_id_dict.get(data.payload.id);
+        if(soonToBeDeadTab){
+            browser.tabs.onRemoved.removeListener(handle_removed);
+            browser.tabs.remove(soonToBeDeadTab);
+            tab_id_dict.delete(data.payload);
+            browser.tabs.onRemoved.addListener(handle_removed);
+        }
+        break;
+    case 'update_tab':
+        var url = data.payload.url;
+        var id = data.payload.id;
+        console.log('update!${id} and ${url}');
 
-/* This is for constant heartbeat status*/
-//function report_state() {
-    //var querying = browser.tabs.query({});
-    //querying.then(report_tabs, onError);
-//}
+        if(!tab_id_dict.get(id)){
+            browser.tabs.onUpdated.removeListener(handle_updated);
+            browser.tabs.onCreated.removeListener(handle_created);
+            var tabPromise = browser.tabs.create({"url": url});
+            tabPromise.then((tab) => {
+                tab_id_dict.set(id, tab.id);
+                updateMappingMessage(tab.id, id);
+                console.log(tab_id_dict);
+                browser.tabs.onUpdated.addListener(handle_updated);
+                browser.tabs.onCreated.addListener(handle_created);
+            });
+            browser.tabs.onUpdated.addListener(handle_updated);
+            browser.tabs.onCreated.addListener(handle_created);
+        }
+        else{
+            var mytab = browser.tabs.get(tab_id_dict.get(id));
+            mytab.then((tab) => {
+                if(tab.url != url){
+                    browser.tabs.onCreated.removeListener(handle_created);
+                    browser.tabs.onUpdated.removeListener(handle_updated);
+                    var tabPromise = browser.tabs.update(tab_id_dict.get(id), {"url": url});
+                    tabPromise.then((tab) => {
+                        browser.tabs.onUpdated.addListener(handle_updated);
+                        browser.tabs.onCreated.addListener(handle_created);
+                    });
+                }
+            });
 
-//function report_tabs(tabs) {
-    //console.log('sending tabs');
-    //mysocket.send(JSON.stringify(tabs));
-//}
+        }
+        break;
+    case 'replace_tab':
+        console.log('replace!');
+        break;
+    case 'update_mapping':
+        console.log('updating map!');
+        myid = data.payload['yourid'];
+        yourid = data.payload['myid'];
+        tab_id_dict.set(yourid, myid);
+        console.log(tab_id_dict);
+        break;
+    default:
+        console.log('I dont know what to do with this data!');
+    }
 
-//function onError(error) {
-  //console.log(`Error: ${error}`);
-//}
+}
 
-//setInterval(report_state, 5000);
+function updateMappingMessage(myid, yourid){
+    var msg = create_message('update_mapping');
+    msg.payload = {'myid' : myid, 'yourid' : yourid};
+    mysocket.send(JSON.stringify(msg));
+}
 
 
+browser.tabs.onActivated.addListener(handle_activated);
+browser.tabs.onCreated.addListener(handle_created);
+browser.tabs.onRemoved.addListener(handle_removed);
+browser.tabs.onReplaced.addListener(handle_replaced);
+browser.tabs.onUpdated.addListener(handle_updated);
 
-//var currentTab;
-//var currentBookmark;
+function create_message(kind){
+    return {'kind': kind};
+}
 
-/*
- * Updates the browserAction icon to reflect whether the current page
- * is already bookmarked.
- */
-//function updateIcon() {
-  //browser.browserAction.setIcon({
-    //path: currentBookmark ? {
-      //19: "icons/star-filled-19.png",
-      //38: "icons/star-filled-38.png"
-    //} : {
-      //19: "icons/star-empty-19.png",
-      //38: "icons/star-empty-38.png"
-    //},
-    //tabId: currentTab.id
-  //});
-//}
+function handle_created(tab){
+    var msg = create_message('create_tab');
+    console.log('sending a create!');
+    msg.payload = tab;
+    mysocket.send(JSON.stringify(msg));
+}
 
-/*
- * Add or remove the bookmark on the current page.
- */
-//function toggleBookmark() {
-  //if (currentBookmark) {
-    //browser.bookmarks.remove(currentBookmark.id);
-  //} else {
-    //browser.bookmarks.create({title: currentTab.title, url: currentTab.url});
-  //}
-//}
+function handle_activated(tab){
+    var msg = create_message('activate_tab');
+    msg.payload = tab;
+    //mysocket.send(JSON.stringify(msg));
+}
 
-//browser.browserAction.onClicked.addListener(toggleBookmark);
+function handle_replaced(tab){
+    var msg = create_message('replace_tab');
+    msg.payload = tab;
+    //mysocket.send(JSON.stringify(msg));
+}
 
-/*
- * Switches currentTab and currentBookmark to reflect the currently active tab
- */
-//function updateActiveTab(tabs) {
+function handle_removed(id){
+    console.log('sending a removed!');
+    var msg = create_message('remove_tab');
+    msg.payload = {'id': id};
+    var dieTabId;
+    for (var kid in tab_id_dict){
+        if(tab_id_dict.get(kid) == id){
+            dieTabId = kid;
+            break;
+        }
+    }
+    tab_id_dict.delete(dieTabId);
+    console.log(msg);
+    mysocket.send(JSON.stringify(msg));
+}
 
-  //function isSupportedProtocol(urlString) {
-    //var supportedProtocols = ["https:", "http:", "ftp:", "file:"];
-    //var url = document.createElement('a');
-    //url.href = urlString;
-    //return supportedProtocols.indexOf(url.protocol) != -1;
-  //}
-
-  //function updateTab(tabs) {
-    //if (tabs[0]) {
-      //currentTab = tabs[0];
-      //if (isSupportedProtocol(currentTab.url)) {
-        //var searching = browser.bookmarks.search({url: currentTab.url});
-        //searching.then((bookmarks) => {
-          //currentBookmark = bookmarks[0];
-          //updateIcon();
-        //});
-      //} else {
-        //console.log(`Bookmark it! does not support the '${currentTab.url}' URL.`)
-      //}
-    //}
-  //}
-
-  //var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
-  //gettingActiveTab.then(updateTab);
-//}
-
-//// listen for bookmarks being created
-//browser.bookmarks.onCreated.addListener(updateActiveTab);
-
-//// listen for bookmarks being removed
-//browser.bookmarks.onRemoved.addListener(updateActiveTab);
-
-//// listen to tab URL changes
-//browser.tabs.onUpdated.addListener(updateActiveTab);
-
-//// listen to tab switching
-//browser.tabs.onActivated.addListener(updateActiveTab);
-
-//// listen for window switching
-//browser.windows.onFocusChanged.addListener(updateActiveTab);
-
-//// update when the extension loads initially
-//updateActiveTab();
+function handle_updated(id, update_info){
+    if(update_info.url){
+        console.log(id);
+        var msg = create_message('update_tab');
+        console.log('sending a updated!');
+        console.log(update_info);
+        msg.payload = {'url': update_info.url, 'id' : id};
+        mysocket.send(JSON.stringify(msg));
+    }
+}
