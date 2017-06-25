@@ -33,7 +33,6 @@ mysocket.onmessage = function(evt) {
             updateMappingMessage(tab.id, data.payload.id);
             browser.tabs.onCreated.addListener(handle_created);
         });
-        browser.tabs.onCreated.addListener(handle_created);
         break;
     case 'activate_tab':
         console.log('activate!');
@@ -44,7 +43,7 @@ mysocket.onmessage = function(evt) {
         if(soonToBeDeadTab){
             browser.tabs.onRemoved.removeListener(handle_removed);
             browser.tabs.remove(soonToBeDeadTab);
-            tab_id_dict.delete(data.payload);
+            tab_id_dict.delete(data.payload.id);
             browser.tabs.onRemoved.addListener(handle_removed);
         }
         break;
@@ -67,8 +66,6 @@ mysocket.onmessage = function(evt) {
                 browser.tabs.onUpdated.addListener(handle_updated);
                 browser.tabs.onCreated.addListener(handle_created);
             });
-            browser.tabs.onUpdated.addListener(handle_updated);
-            browser.tabs.onCreated.addListener(handle_created);
         }
         else{
             var mytab = browser.tabs.get(tab_id_dict.get(id));
@@ -145,14 +142,15 @@ function handle_removed(id){
     console.log('sending a removed!');
     var msg = create_message('remove_tab');
     msg.payload = {'id': id};
-    var dieTabId;
+    //var dieTabId;
     for (var kid in tab_id_dict){
         if(tab_id_dict.get(kid) == id){
-            dieTabId = kid;
+            //dieTabId = kid;
+            tab_id_dict.delete(kid);
             break;
         }
     }
-    tab_id_dict.delete(dieTabId);
+    //tab_id_dict.delete(dieTabId);
     console.log(msg);
     mysocket.send(JSON.stringify(msg));
 }
