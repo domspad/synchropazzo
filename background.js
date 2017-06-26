@@ -20,29 +20,31 @@ mysocket.onmessage = function(evt) {
     //console.log(tablist);
     data = JSON.parse(evt.data);
     switch (data.kind) {
-    case 'create_tab':
-        console.log('create!');
-        browser.tabs.onCreated.removeListener(handle_created);
-        var tabPromise = browser.tabs.create({});
-        tabPromise.then(function(tab) {
-            tab_id_dict.set(data.payload.id, tab.id);
-            console.log("For the create ");
-            for (var [key, value] of tab_id_dict.entries()) {
-                console.log(key + ' = ' + value);
-            }
-            updateMappingMessage(tab.id, data.payload.id);
-            browser.tabs.onCreated.addListener(handle_created);
-        });
-        break;
+    //case 'create_tab':
+        //console.log('create!');
+        //browser.tabs.onCreated.removeListener(handle_created);
+        //var tabPromise = browser.tabs.create({});
+        //tabPromise.then(function(tab) {
+            //tab_id_dict.set(data.payload.id, tab.id);
+            //updateMappingMessage(tab.id, data.payload.id);
+            //browser.tabs.onCreated.addListener(handle_created);
+        //});
+        //break;
     case 'activate_tab':
         console.log('activate!');
-        browser.tabs.onActivated.removeListener(handle_activated);
-        browser.tabs.onUpdated.removeListener(handle_updated);
-        updatePromise = browser.tabs.update(tab_id_dict.get(data.payload.tabId), {"active": true});
-        updatePromise.then(function(tab) {
-            browser.tabs.onActivated.addListener(handle_activated);
-            browser.tabs.onUpdated.addListener(handle_updated);
-        });
+        other_tab = data.payload;
+        if(!tab_id_dict.get(other_tab.id)){
+            handle_invalid_tab(other_tab);
+        } else {
+            console.log("activate a valid tab");
+            browser.tabs.onActivated.removeListener(handle_activated);
+            browser.tabs.onUpdated.removeListener(handle_updated);
+            updatePromise = browser.tabs.update(tab_id_dict.get(data.payload.tabId), {"active": true});
+            updatePromise.then(function(tab) {
+                browser.tabs.onActivated.addListener(handle_activated);
+                browser.tabs.onUpdated.addListener(handle_updated);
+            });
+        }
         break;
     case 'remove_tab':
         console.log('remove!');
@@ -57,33 +59,22 @@ mysocket.onmessage = function(evt) {
     case 'update_tab':
         var url = data.payload.url;
         var id = data.payload.id;
+        var active = data.payload.active;
         console.log('update!${id} and ${url}');
-
+        // TODO : factor out update map case with activate_tab case
         if(!tab_id_dict.get(id)){
-            browser.tabs.onUpdated.removeListener(handle_updated);
-            browser.tabs.onCreated.removeListener(handle_created);
-            var tabPromise = browser.tabs.create({"url": url});
-            tabPromise.then((tab) => {
-                tab_id_dict.set(id, tab.id);
-                updateMappingMessage(tab.id, id);
-                console.log("For the update ");
-                for (var [key, value] of tab_id_dict.entries()) {
-                    console.log(key + ' = ' + value);
-                }
-                browser.tabs.onUpdated.addListener(handle_updated);
-                browser.tabs.onCreated.addListener(handle_created);
-            });
+            handle_invalid_tab(data.payload);
         }
         else{
             var mytab = browser.tabs.get(tab_id_dict.get(id));
             mytab.then((tab) => {
                 if(tab.url != url){
-                    browser.tabs.onCreated.removeListener(handle_created);
+                    //browser.tabs.onCreated.removeListener(handle_created);
                     browser.tabs.onUpdated.removeListener(handle_updated);
-                    var tabPromise = browser.tabs.update(tab_id_dict.get(id), {"url": url});
+                    var tabPromise = browser.tabs.update(tab_id_dict.get(id), {"url": url, "active": active});
                     tabPromise.then((tab) => {
                         browser.tabs.onUpdated.addListener(handle_updated);
-                        browser.tabs.onCreated.addListener(handle_created);
+                        //browser.tabs.onCreated.addListener(handle_created);
                     });
                 }
             });
@@ -109,6 +100,23 @@ mysocket.onmessage = function(evt) {
 function setTabId(keyId, valId){
 }
 
+function handle_invalid_tab(tab){
+            //      create tab, update map, send updtade map messgae
+            var url = tab.url;
+            var active = tab.active;
+            var id = tab.id;
+            console.log("Handling invalid tab ID");
+            browser.tabs.onUpdated.removeListener(handle_updated);
+            //browser.tabs.onCreated.removeListener(handle_created);
+            var tabPromise = browser.tabs.create({"url": url, "active": active});
+            tabPromise.then((tabObj) => {
+                tab_id_dict.set(id, tabObj.id);
+                updateMappingMessage(tabObj.id, id);
+                browser.tabs.onUpdated.addListener(handle_updated);
+                //browser.tabs.onCreated.addListener(handle_created);
+            });
+}
+
 function updateMappingMessage(myid, yourid){
     var msg = create_message('update_mapping');
     msg.payload = {'myid' : myid, 'yourid' : yourid};
@@ -117,7 +125,7 @@ function updateMappingMessage(myid, yourid){
 
 
 browser.tabs.onActivated.addListener(handle_activated);
-browser.tabs.onCreated.addListener(handle_created);
+//browser.tabs.onCreated.addListener(handle_created);
 browser.tabs.onRemoved.addListener(handle_removed);
 browser.tabs.onReplaced.addListener(handle_replaced);
 browser.tabs.onUpdated.addListener(handle_updated);
@@ -126,19 +134,23 @@ function create_message(kind){
     return {'kind': kind};
 }
 
-function handle_created(tab){
-    var msg = create_message('create_tab');
-    console.log('sending a create!');
-    msg.payload = tab;
-    mysocket.send(JSON.stringify(msg));
-}
+//function handle_created(tab){
+    //var msg = create_message('create_tab');
+    //console.log('sending a create!');
+    //msg.payload = tab;
+    //mysocket.send(JSON.stringify(msg));
+//}
 
-function handle_activated(tab){
-    var msg = create_message('activate_tab');
-    msg.payload = tab;
-    console.log('sending an activate!');
-    console.log(msg);
-    mysocket.send(JSON.stringify(msg));
+function handle_activated(active_info){
+    // active_info = { tabId: <num>, windowId, <num>}
+    tab_promise = browser.tabs.get(active_info.tabId);
+    tab_promise.then(function(tab) {
+        var msg = create_message('activate_tab');
+        msg.payload = tab;
+        console.log('sending an activate!');
+        console.log(msg);
+        mysocket.send(JSON.stringify(msg));
+    });
 }
 
 function handle_replaced(tab){
