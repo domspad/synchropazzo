@@ -1,7 +1,10 @@
 var tab_id_dict = new Map();
-
+var already_synced = false;
 mysocket = new WebSocket("ws://linus.casa:8000/");
-mysocket.onopen = function(evt) { console.log('opened!');}
+mysocket.onopen = function(evt) {
+    console.log('opened!');
+    handle_sync();
+}
 
 
 //browser.browserAction.onClicked.addListener(handle_click);
@@ -20,6 +23,34 @@ mysocket.onmessage = function(evt) {
     //console.log(tablist);
     data = JSON.parse(evt.data);
     switch (data.kind) {
+    case 'window_sync':
+        console.log('syncing window!');
+        console.log(data.payload);
+        // send my open tabs before I add other users'
+        if(!already_synced){
+            handle_sync();
+        }
+        tabs = data.payload;
+        num_tabs = tabs.length;
+        // disable handlers
+        browser.tabs.onCreated.removeListener(handle_created);
+        browser.tabs.onUpdated.removeListener(handle_updated);
+        for (var i=0; i < num_tabs; i++) {
+            tab = tabs[i];
+            // open tab
+            create_promise = browser.tabs.create({'url': tab.url});
+            create_promise.then(function(tab_obj) {
+                    console.log("Created " + i + "th tab with id " + tab_obj.id + "for your " + tab.id);
+                    tab_id_dict.set(tab.id, tab_obj.id);
+                    updateMappingMessage(tab_obj.id, tab.id);
+                    if(i == num_tabs-1){
+                        // enable handlers
+                        browser.tabs.onCreated.addListener(handle_created);
+                        browser.tabs.onUpdated.addListener(handle_updated);
+                    }
+            });
+        }
+        break;
     case 'create_tab':
         console.log('create!');
         browser.tabs.onCreated.removeListener(handle_created);
@@ -121,6 +152,18 @@ browser.tabs.onCreated.addListener(handle_created);
 browser.tabs.onRemoved.addListener(handle_removed);
 browser.tabs.onReplaced.addListener(handle_replaced);
 browser.tabs.onUpdated.addListener(handle_updated);
+
+function handle_sync() {
+    already_synced = true;
+    var msg = create_message('window_sync');
+    var openTabs = browser.tabs.query({});
+    openTabs.then(function(tabs) {
+    console.log('sending everything I\'ve got!');
+    msg.payload = tabs;
+    mysocket.send(JSON.stringify(msg));
+
+    });
+}
 
 function create_message(kind){
     return {'kind': kind};
