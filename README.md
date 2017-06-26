@@ -3,7 +3,9 @@
 
 to do :
 
- - [ ] remove tab fix
+ - [X] remove tab fix
+ - [X] activate tab
+ - [ ] sync up on connection
  - [ ] unique login name to choose who to sync with
  - [ ] do scroll syncing
  - [ ] allow for different screen sizes, font sizes,
