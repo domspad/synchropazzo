@@ -99,6 +99,11 @@ mysocket.onmessage = function(evt) {
         tab_id_dict.set(yourid, myid);
         console.log(tab_id_dict);
         break;
+    case 'update_scroll':
+        console.log('receiving update scroll');
+        console.log('the event: pageX ' + data.payload.pageX + ' pageY ' + data.payload.pageY);
+        window.scrollTo(data.payload.pageX, data.payload.pageY);
+        break;
     default:
         console.log('I dont know what to do with this data!');
     }
@@ -136,6 +141,16 @@ function updateMappingMessage(myid, yourid){
 }
 
 
+function handle_scroll(scroll_event) {
+//scroll { target: HTMLDocument → dashboard, isTrusted: true, view:
+    //Window → dashboard, detail: 0, layerX: 0, layerY: 0, pageX: 0,
+    //pageY: 542, which: 0, rangeOffset: 0, isChar: false }
+    var msg = create_message('update_scroll');
+    msg.payload = scroll_event;
+    mysocket.send(JSON.stringify(msg));
+}
+
+window.addListener("scroll", handle_scroll);
 browser.tabs.onActivated.addListener(handle_activated);
 //browser.tabs.onCreated.addListener(handle_created);
 browser.tabs.onRemoved.addListener(handle_removed);
