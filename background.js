@@ -31,15 +31,17 @@ mysocket.onmessage = function(evt) {
         //});
         //break;
     case 'activate_tab':
-        console.log('activate!');
+        console.log('receiving activate! ' + data.payload.id);
         other_tab = data.payload;
+        other_tab['active'] = true;
         if(!tab_id_dict.get(other_tab.id)){
+            console.log('on receving activate, didn\'t find id ' + other_tab.id);
             handle_invalid_tab(other_tab);
         } else {
-            console.log("activate a valid tab");
+            console.log("on receiving activate a valid tab found your id " + other_tab.id);
             browser.tabs.onActivated.removeListener(handle_activated);
             browser.tabs.onUpdated.removeListener(handle_updated);
-            updatePromise = browser.tabs.update(tab_id_dict.get(data.payload.tabId), {"active": true});
+            updatePromise = browser.tabs.update(tab_id_dict.get(data.payload.id), {"active": true});
             updatePromise.then(function(tab) {
                 browser.tabs.onActivated.addListener(handle_activated);
                 browser.tabs.onUpdated.addListener(handle_updated);
@@ -47,7 +49,7 @@ mysocket.onmessage = function(evt) {
         }
         break;
     case 'remove_tab':
-        console.log('remove!');
+        console.log('receiving remove!' + data.payload.id);
         var soonToBeDeadTab = tab_id_dict.get(data.payload.id);
         if(soonToBeDeadTab){
             browser.tabs.onRemoved.removeListener(handle_removed);
@@ -60,15 +62,21 @@ mysocket.onmessage = function(evt) {
         var url = data.payload.url;
         var id = data.payload.id;
         var active = data.payload.active;
-        console.log('update!${id} and ${url}');
+        if(!active){
+            active = false;
+        }
+        console.log('receiving update tab! with ' + id + ' and ' + url + 'and active ' + active);
         // TODO : factor out update map case with activate_tab case
         if(!tab_id_dict.get(id)){
+            console.log('on received update, didn\'t find id in map, handling...');
             handle_invalid_tab(data.payload);
         }
         else{
             var mytab = browser.tabs.get(tab_id_dict.get(id));
             mytab.then((tab) => {
+                console.log('on received update, comparing my url '+ tab.url + ' with your url ' + url);
                 if(tab.url != url){
+                    console.log('urls are different! we are updating and active is ' + active);
                     //browser.tabs.onCreated.removeListener(handle_created);
                     browser.tabs.onUpdated.removeListener(handle_updated);
                     var tabPromise = browser.tabs.update(tab_id_dict.get(id), {"url": url, "active": active});
@@ -85,7 +93,7 @@ mysocket.onmessage = function(evt) {
         console.log('replace!');
         break;
     case 'update_mapping':
-        console.log('updating map!');
+        console.log('receiving updating map!');
         myid = data.payload['yourid'];
         yourid = data.payload['myid'];
         tab_id_dict.set(yourid, myid);
@@ -105,10 +113,14 @@ function handle_invalid_tab(tab){
             var url = tab.url;
             var active = tab.active;
             var id = tab.id;
-            console.log("Handling invalid tab ID");
+            console.log("Sending invalid tab ID update message");
             browser.tabs.onUpdated.removeListener(handle_updated);
             //browser.tabs.onCreated.removeListener(handle_created);
-            var tabPromise = browser.tabs.create({"url": url, "active": active});
+            if(url === 'about:newtab'){
+                var tabPromise = browser.tabs.create({'active':active});
+            }else {
+                var tabPromise = browser.tabs.create({"url": url, "active": active});
+            }
             tabPromise.then((tabObj) => {
                 tab_id_dict.set(id, tabObj.id);
                 updateMappingMessage(tabObj.id, id);
@@ -147,7 +159,7 @@ function handle_activated(active_info){
     tab_promise.then(function(tab) {
         var msg = create_message('activate_tab');
         msg.payload = tab;
-        console.log('sending an activate!');
+        console.log('sending an activate! with id ' + tab.id + ' and active ' + tab.active);
         console.log(msg);
         mysocket.send(JSON.stringify(msg));
     });
@@ -180,9 +192,19 @@ function handle_updated(id, update_info){
     if(update_info.url){
         console.log(id);
         var msg = create_message('update_tab');
-        console.log('sending a updated!');
+        console.log('sending a updated for a new url! ' + id + ' and url ' + update_info.url);
         console.log(update_info);
-        msg.payload = {'url': update_info.url, 'id' : id};
+        active = update_info.active;
+        if(!active){
+            active = false;
+        }
+        msg.payload = {'url': update_info.url, 'id' : id, 'active' : active};
+        mysocket.send(JSON.stringify(msg));
+    } else if(update_info.active) {
+        console.log('sending an updated for active tab! (not sure why we get this...) with id ' + id);
+        console.log(update_info);
+        var msg = create_message('update_tab');
+        msg.payload = {'id' : id , 'active' : update_info.active };
         mysocket.send(JSON.stringify(msg));
     }
 }
