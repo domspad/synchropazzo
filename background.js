@@ -1,4 +1,5 @@
 var tab_id_dict = new Map();
+var portFromCS;
 
 mysocket = new WebSocket("ws://linus.casa:8000/");
 mysocket.onopen = function(evt) { console.log('opened!');}
@@ -20,6 +21,9 @@ mysocket.onmessage = function(evt) {
     //console.log(tablist);
     data = JSON.parse(evt.data);
     switch (data.kind) {
+    case 'update_connect':
+        alert(data.payload);
+        break;
     //case 'create_tab':
         //console.log('create!');
         //browser.tabs.onCreated.removeListener(handle_created);
@@ -101,8 +105,8 @@ mysocket.onmessage = function(evt) {
         break;
     case 'update_scroll':
         console.log('receiving update scroll');
-        console.log('the event: pageX ' + data.payload.pageX + ' pageY ' + data.payload.pageY);
-        window.scrollTo(data.payload.pageX, data.payload.pageY);
+        console.log('the event: pageX ' + data.pageX + ' pageY ' + data.pageY);
+        portFromCS.postMessage({"pageX": data.pageX, "pageY": data.pageY, "uuid": data.uuid});
         break;
     default:
         console.log('I dont know what to do with this data!');
@@ -141,16 +145,6 @@ function updateMappingMessage(myid, yourid){
 }
 
 
-function handle_scroll(scroll_event) {
-//scroll { target: HTMLDocument → dashboard, isTrusted: true, view:
-    //Window → dashboard, detail: 0, layerX: 0, layerY: 0, pageX: 0,
-    //pageY: 542, which: 0, rangeOffset: 0, isChar: false }
-    var msg = create_message('update_scroll');
-    msg.payload = scroll_event;
-    mysocket.send(JSON.stringify(msg));
-}
-
-window.addListener("scroll", handle_scroll);
 browser.tabs.onActivated.addListener(handle_activated);
 //browser.tabs.onCreated.addListener(handle_created);
 browser.tabs.onRemoved.addListener(handle_removed);
@@ -159,6 +153,24 @@ browser.tabs.onUpdated.addListener(handle_updated);
 
 function create_message(kind){
     return {'kind': kind};
+}
+
+
+function connected(p) {
+    portFromCS = p;
+    portFromCS.onMessage.addListener(handle_scroll);
+}
+
+browser.runtime.onConnect.addListener(connected);
+
+function handle_scroll(scroll_event) {
+    console.log("sending update scroll");
+    var msg = create_message('update_scroll');
+    msg.pageX = scroll_event.pageX;
+    msg.pageY = scroll_event.pageY;
+    msg.uuid = scroll_event.uuid;
+    console.log(msg);
+    mysocket.send(JSON.stringify(msg));
 }
 
 //function handle_created(tab){

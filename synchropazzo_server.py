@@ -24,6 +24,13 @@ class SimpleEcho(WebSocket):
 
    def handleConnected(self):
        print("{0} connected!".format(self.address))
+       for client in clients:
+           client.sendMessage("\{ 'kind' : 'update_connect', 'payload' : 'Look who\'s here! {0}...'\}".format(self.address));
+       if len(clients) == 0:
+           self.sendMessage("\{ 'kind' : 'update_connect', 'payload' : 'You are the first one here!'\}");
+       else:
+          ones_already_connected = ", ".join([c.address for c in clients ])
+          client.sendMessage("\{ 'kind' : 'update_connect', 'payload' : '{0} have been expecting you...' \}".format(ones_already_connected))
        clients.append(self)
 
    def handleClose(self):

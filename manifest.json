@@ -14,6 +14,10 @@
       "default_icon": "icons/pazzo.png",
       "default_title": "Sync it!"
   },
+  "content_scripts": [{
+      "matches" : ["<all_urls>"],
+      "js": ["dom_mouse_scroll.js"]
+  }],
 
     "applications": {
       "gecko": {
