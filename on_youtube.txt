@@ -18,3 +18,4 @@ in background script:
     listen to synchropazzo server and pass along youtube-updates from it to content script
 
 
+

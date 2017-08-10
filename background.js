@@ -7,8 +7,9 @@ mysocket.onopen = function(evt) { console.log('opened!');}
 var portFromCS;
 
 function connected(p) {
+  console.log('connected to content script'); 
+  console.log(p);
   portFromCS = p;
-  portFromCS.postMessage({greeting: "hi there content script!"});
     // pass along msg's from content to server (assume youtube-related for now)
   portFromCS.onMessage.addListener(function(m) {
     console.log("recieving youtube video update from content script...");
