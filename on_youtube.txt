@@ -1,0 +1,20 @@
+
+TODO:
+
+    figure out why firefox can't establish a connection
+
+in content script:
+
+check for mplayer in page...
+    
+    addeventlistener to onStateChange
+    always send a seek update when changed (use seekTo)
+    update pause and play with player.video.pause()
+                               player.video.play()
+
+in background script:
+    
+    listen to content script and pass along youtube-updates from it to synchropazzo server
+    listen to synchropazzo server and pass along youtube-updates from it to content script
+
+

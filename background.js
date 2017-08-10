@@ -4,6 +4,26 @@ mysocket = new WebSocket("ws://linus.casa:8000/");
 mysocket.onopen = function(evt) { console.log('opened!');}
 
 
+var portFromCS;
+
+function connected(p) {
+  portFromCS = p;
+  portFromCS.postMessage({greeting: "hi there content script!"});
+    // pass along msg's from content to server (assume youtube-related for now)
+  portFromCS.onMessage.addListener(function(m) {
+    console.log("recieving youtube video update from content script...");
+    console.log(m); 
+    var msg = create_message('update_youtube');
+    msg.current_state = m.current_state;
+    msg.current_time = m.current_time;
+    console.log(msg);
+    mysocket.send(JSON.stringify(msg));
+  
+  });
+}
+
+browser.runtime.onConnect.addListener(connected);
+
 //browser.browserAction.onClicked.addListener(handle_click);
 
 //function handle_click(tab) {
@@ -92,6 +112,9 @@ mysocket.onmessage = function(evt) {
     case 'replace_tab':
         console.log('replace!');
         break;
+    case 'update_youtube':
+        console.log('received youtube_update! passing to content script');
+        portFromCS.postMessage(data.payload);
     case 'update_mapping':
         console.log('receiving updating map!');
         myid = data.payload['yourid'];
